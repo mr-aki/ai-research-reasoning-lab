@@ -1,14 +1,10 @@
-"""Run the smallest end-to-end pipeline.
+"""Small end-to-end grounded pipeline example."""
 
-Usage:
-    python examples/basic_pipeline.py
-"""
-
-from arlab.agents import EchoAgent, ResearchAgent
+from arlab.agents import ResearchAgent
 from arlab.core import Evidence, Pipeline
 from arlab.verification import BasicVerifier
 
-pipeline = Pipeline([EchoAgent(), ResearchAgent()], verifier=BasicVerifier())
+pipeline = Pipeline([ResearchAgent()], verifier=BasicVerifier())
 
 result = pipeline.run(
     "What makes an AI answer trustworthy?",
@@ -23,6 +19,6 @@ result = pipeline.run(
     },
 )
 
-# The baseline pipeline intentionally keeps evidence explicit.
-print(result.output)
+print("answer:", result.output)
 print("verified:", result.verification.passed if result.verification else None)
+print("trace:", result.trace_id)
