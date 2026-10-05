@@ -13,12 +13,11 @@ class EchoAgent:
     name = "echo"
 
     def run(self, context: AgentContext) -> AgentResult:
-        output = context.task
-        return AgentResult(agent=self.name, output=output, confidence=1.0)
+        return AgentResult(agent=self.name, output=context.task, confidence=1.0)
 
 
 class FunctionAgent:
-    """Adapter that turns a normal Python function into an agent."""
+    """Adapter that turns a Python function into an agent."""
 
     def __init__(self, name: str, function: Callable[[AgentContext], Any]) -> None:
         self.name = name
@@ -27,47 +26,44 @@ class FunctionAgent:
     def run(self, context: AgentContext) -> AgentResult:
         output, duration = timed_call(lambda: self.function(context))
         return AgentResult(
-            agent=self.name,
-            output=output,
-            confidence=0.5,
-            duration_ms=duration,
+            agent=self.name, output=output, confidence=0.5, duration_ms=duration
         )
 
 
 class ResearchAgent:
-    """Simple evidence-aware synthesis agent.
+    """Evidence-aware synthesis baseline.
 
-    This baseline intentionally does not pretend to browse the internet.
-    Production connectors can provide Evidence objects through AgentContext.
+    The agent never claims to browse. Evidence must be supplied explicitly
+    by a connector, retriever, or experiment.
     """
 
     name = "researcher"
 
     def run(self, context: AgentContext) -> AgentResult:
+        seeded = context.inputs.get("seed_evidence", [])
+        if seeded:
+            for item in seeded:
+                if isinstance(item, Evidence):
+                    context.evidence.append(item)
+
         evidence = list(context.evidence)
         if not evidence:
-            output = {
-                "answer": "No external evidence was supplied.",
-                "status": "ungrounded",
-            }
             return AgentResult(
                 agent=self.name,
-                output=output,
+                output={"answer": "No external evidence was supplied.", "status": "ungrounded"},
                 confidence=0.1,
                 metadata={"evidence_count": 0},
             )
 
         snippets = [item.content.strip() for item in evidence if item.content.strip()]
-        output = {
-            "answer": "\n".join(snippets),
-            "status": "grounded",
-            "evidence_count": len(snippets),
-        }
-        confidence = min(0.95, 0.35 + 0.1 * len(snippets))
         return AgentResult(
             agent=self.name,
-            output=output,
-            confidence=confidence,
+            output={
+                "answer": "\n".join(snippets),
+                "status": "grounded",
+                "evidence_count": len(snippets),
+            },
+            confidence=min(0.95, 0.35 + 0.1 * len(snippets)),
             evidence=evidence,
             metadata={"evidence_count": len(snippets)},
         )
